@@ -1,0 +1,3 @@
+ofxSnappy
+ofxDepthStreamCompression
+ofxKinect
