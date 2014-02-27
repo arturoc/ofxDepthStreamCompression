@@ -87,7 +87,8 @@ const vector<short> & ofxDepthCompressedFrame::compressedData(){
 			for(int i=0;i<pixels.size();i++){
 				int pos = i-lastPos;
 				if(pixels[i]==0 && pos < std::numeric_limits<unsigned short>::max()) continue;
-				uncompressedDiff.push_back(DiffPixel{(unsigned short)pos,pixels[i]});
+                DiffPixel diffPixel={(unsigned short)pos,pixels[i]};
+				uncompressedDiff.push_back(diffPixel);
 				lastPos = i;
 			}
 			if(uncompressedDiff.empty()){
