@@ -1,4 +1,5 @@
 #include "ofApp.h"
+#include "assert.h"
 
 #define DEPTH_FINAL_W 160
 #define DEPTH_FINAL_H 120
@@ -71,10 +72,9 @@ void ofApp::update(){
 		lastFrame.fromCompressedData((const char*)&frame.compressedData()[0],frame.compressedData().size()*2);
 		if(lastFrame.isKeyFrame()){
 			lastKeyFrame = lastFrame;
-
 		}else{
 			for(int i=0;i<keyPlusDiff.size();i++){
-				keyPlusDiff[i] = lastKeyFrame.getPixels()[i] + lastFrame.getPixels()[i];
+				keyPlusDiff[i] = ((unsigned short)lastKeyFrame.getPixels()[i]) + lastFrame.getPixels()[i];
 			}
 			meshFromDepthPixels(keyPlusDiff,mesh,kinect);
 		}
