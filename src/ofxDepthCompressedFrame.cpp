@@ -6,7 +6,100 @@
  */
 
 #include "ofxDepthCompressedFrame.h"
+
+#define USE_GZIP 0
+
+#if USE_GZIP
+#include <zlib.h>
+
+#define windowBits -15
+#define GZIP_ENCODING 16
+
+static void strm_init_deflate (z_stream * strm)
+{
+    strm->zalloc = Z_NULL;
+    strm->zfree  = Z_NULL;
+    strm->opaque = Z_NULL;
+    deflateInit2 (strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+                             windowBits, 9,
+                             Z_FILTERED);
+}
+
+static void strm_init_inflate (z_stream * strm)
+{
+    strm->zalloc = Z_NULL;
+    strm->zfree  = Z_NULL;
+    strm->opaque = Z_NULL;
+    inflateInit2 (strm, windowBits);
+}
+
+static size_t ofx_compress(const unsigned char* in, size_t size_in, unsigned char* out){
+	z_stream strm;
+	strm_init_deflate (& strm);
+	strm.next_in = (unsigned char*)in;
+	strm.avail_in = size_in;
+	strm.avail_out = size_in;
+	strm.next_out = out;
+	deflate (& strm, Z_FINISH);
+	deflateEnd(&strm);
+	return size_in - strm.avail_out;
+}
+
+template<typename T>
+static void ofx_uncompress(const unsigned char* in, size_t size_in, vector<T> & out){
+	z_stream strm;
+	strm_init_inflate (& strm);
+	strm.next_in = (unsigned char*)in;
+	strm.avail_in = size_in;
+	if(out.size()==0) out.resize(size_in);
+	unsigned char* next_out = (unsigned char*)&out[0];
+	size_t size_out = out.size()*sizeof(T);
+	do{
+		strm.avail_out = size_out;
+		strm.next_out = next_out;
+		inflate (&strm, Z_FINISH);
+		if(strm.avail_out!=0) break;
+		out.resize(out.size()*2);
+		next_out=(unsigned char*)&out[out.size()/2];
+		size_out = (out.size()/2)*sizeof(T);
+	}while(true);
+	inflateEnd(&strm);
+	out.resize( out.size() - strm.avail_out/sizeof(T));
+}
+
+template<typename T>
+static void ofx_uncompress(const unsigned char* in, size_t size_in, T* out, size_t size_out){
+	z_stream strm;
+	strm_init_inflate (& strm);
+	strm.next_in = (unsigned char*)in;
+	strm.avail_in = size_in;
+	strm.avail_out = size_out;
+	strm.next_out = (unsigned char*)out;
+	inflate (& strm, Z_FINISH);
+	inflateEnd(&strm);
+}
+#else
+
 #include "snappy.h"
+static size_t ofx_compress(const unsigned char* in, size_t size_in, unsigned char* out){
+	size_t compressedBytes;
+	snappy::RawCompress((char*)in,size_in,(char*)out,&compressedBytes);
+	return compressedBytes;
+}
+
+template<typename T>
+static void ofx_uncompress(const unsigned char* in, size_t size_in, vector<T> & out){
+	size_t uncompressed_len;
+	snappy::GetUncompressedLength((char*)in,size_in,&uncompressed_len);
+	out.resize(uncompressed_len/sizeof(T));
+	snappy::RawUncompress((char*)in,size_in,(char*)&out[0]);
+}
+
+template<typename T>
+static void ofx_uncompress(const unsigned char* in, size_t size_in, T* out, size_t size_out){
+	snappy::RawUncompress((char*)in,size_in,(char*)out);
+}
+#endif
 
 void ofxDepthCompressedFrame::allocate(int w, int h, bool isKeyFrame){
 	pixels.allocate(w,h,1);
@@ -42,16 +135,18 @@ void ofxDepthCompressedFrame::fromCompressedData(const char* data, size_t len){
 	compressed[3] = shortdata[3];
 	compressed[4] = shortdata[4];
 
+
+	//FIXME: check that size is correct
+	compressed[1] = shordata[1] = 640;
+	compressed[2] = shordata[2] = 480;
+
 	pixels.allocate(shortdata[1],shortdata[2],1);
 	if(isKeyFrame()){
-		snappy::RawUncompress(data+10,len-10,(char*)pixels.getPixels());
+		ofx_uncompress((unsigned char*)data+10,len-10,(unsigned char*)pixels.getPixels(),pixels.size()*sizeof(short));
 	}else{
 		pixels.set(0);
 		if(len>10){
-			size_t uncompressedLen;
-			snappy::GetUncompressedLength(data+10,len-10,&uncompressedLen);
-			uncompressedDiff.resize(uncompressedLen/sizeof(DiffPixel));
-			snappy::RawUncompress(data+10,len-10,(char*)&uncompressedDiff[0]);
+			ofx_uncompress((unsigned char*)data+10,len-10,uncompressedDiff);
 			int lastPos = 0;
 			for(size_t i=0; i<uncompressedDiff.size(); i++){
 				pixels[lastPos+uncompressedDiff[i].pos] = uncompressedDiff[i].value;
@@ -59,6 +154,10 @@ void ofxDepthCompressedFrame::fromCompressedData(const char* data, size_t len){
 			}
 		}
 	}
+}
+
+vector<ofxDepthCompressedFrame::DiffPixel> & ofxDepthCompressedFrame::getUncompressedDiff(){
+	return uncompressedDiff;
 }
 
 const ofPixels_<short> & ofxDepthCompressedFrame::getPixels() const{
@@ -94,10 +193,10 @@ const vector<short> & ofxDepthCompressedFrame::compressedData(){
 			if(uncompressedDiff.empty()){
 				compressedBytes = 0;
 			}else{
-				snappy::RawCompress((char*)&uncompressedDiff[0],uncompressedDiff.size()*sizeof(DiffPixel),(char*)&compressed[5],&compressedBytes);
+				compressedBytes = ofx_compress((unsigned char*)&uncompressedDiff[0],uncompressedDiff.size()*sizeof(DiffPixel),(unsigned char*)&compressed[5]);
 			}
 		}else{
-			snappy::RawCompress((char*)pixels.getPixels(),pixels.size()*sizeof(short),(char*)&compressed[5],&compressedBytes);
+			compressedBytes = ofx_compress((unsigned char*)pixels.getPixels(),pixels.size()*sizeof(short),(unsigned char*)&compressed[5]);
 		}
 		compressedDirty = false;
 		compressed.resize(compressedBytes/2+5);

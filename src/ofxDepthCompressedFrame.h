@@ -11,6 +11,10 @@
 #include "ofPixels.h"
 
 class ofxDepthCompressedFrame {
+	struct DiffPixel{
+		unsigned short pos;
+		short value;
+	};
 public:
 	void allocate(int w, int h, bool isKeyFrame);
 	void setRegistration(float pixel_size, float distance);
@@ -23,12 +27,8 @@ public:
 
 	const vector<short> & compressedData();
 	void fromCompressedData(const char* data, size_t len);
-
+	vector<DiffPixel> & getUncompressedDiff();
 private:
-	struct DiffPixel{
-		unsigned short pos;
-		short value;
-	};
 	ofPixels_<short> pixels;
 	vector<short> compressed;
 	vector<DiffPixel> uncompressedDiff;

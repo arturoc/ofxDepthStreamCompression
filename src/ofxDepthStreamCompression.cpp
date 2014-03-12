@@ -34,10 +34,19 @@ ofxDepthCompressedFrame ofxDepthStreamCompression::newFrame(ofShortPixels & dept
 
 	lastFrame.allocate(depth.getWidth(), depth.getHeight(), false);
 	lastFrame.setRegistration(pixel_size,distance);
+	int diffCount = 0;
 	for(int i=0; i<depth.size(); i++){
 		int diff = int(depth[i]) - int(lastKeyFrame.getPixels()[i]);
 		float weightedDiff = abs(diff)/float(depth[i]+1);
 		if(((depth[i]<2000 && weightedDiff>0.01) || weightedDiff>0.03) && abs(diff)<numeric_limits<short>::max()){
+			diffCount ++;
+			/*if(diffCount>depth.size()/10){
+				memcpy(lastKeyFrame.getPixels().getPixels(),depth.getPixels(),depth.size()*sizeof(short));
+				lastKeyFrame.setIsKeyFrame(true);
+				lastKeyFrame.setRegistration(pixel_size,distance);
+				timeLastKeyFrame = ofGetElapsedTimeMillis();
+				return lastKeyFrame;
+			}*/
 			lastFrame.getPixels()[i] = diff;
 		}else{
 			lastFrame.getPixels()[i] = 0;

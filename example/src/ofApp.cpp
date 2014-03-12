@@ -4,6 +4,13 @@
 #define DEPTH_FINAL_W 160
 #define DEPTH_FINAL_H 120
 #define SCALE_UP 4
+template<typename T, typename S>
+void directCopy(const ofPixels_<T> & src, ofPixels_<S> & dst){
+	assert(dst.size()==src.size());
+	for(int i=0;i<dst.size();i++){
+		dst[i] = src[i];
+	}
+}
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -67,6 +74,11 @@ void ofApp::update(){
 	kinect.update();
 	if(kinect.isFrameNewDepth()){
 		kinect.getRawDepthPixelsRef().resizeTo(resizedRawDepth,OF_INTERPOLATE_NEAREST_NEIGHBOR);
+		/*for(int i=0;i<resizedRawDepth.size();i++){
+			if(resizedRawDepth[i]>2000){
+				resizedRawDepth[i] = 0;
+			}
+		}*/
 		ofxDepthCompressedFrame frame = compressor.newFrame(resizedRawDepth,kinect.getZeroPlanePixelSize(),kinect.getZeroPlaneDistance());
 
 		lastFrame.fromCompressedData((const char*)&frame.compressedData()[0],frame.compressedData().size()*2);
