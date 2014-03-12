@@ -137,8 +137,8 @@ void ofxDepthCompressedFrame::fromCompressedData(const char* data, size_t len){
 
 
 	//FIXME: check that size is correct
-	compressed[1] = 640;
-	compressed[2] = 480;
+	compressed[1] = 160;
+	compressed[2] = 120;
 
 	pixels.allocate(compressed[1],compressed[2],1);
 	if(isKeyFrame()){
