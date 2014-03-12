@@ -137,10 +137,10 @@ void ofxDepthCompressedFrame::fromCompressedData(const char* data, size_t len){
 
 
 	//FIXME: check that size is correct
-	compressed[1] = shordata[1] = 640;
-	compressed[2] = shordata[2] = 480;
+	compressed[1] = 640;
+	compressed[2] = 480;
 
-	pixels.allocate(shortdata[1],shortdata[2],1);
+	pixels.allocate(compressed[1],compressed[2],1);
 	if(isKeyFrame()){
 		ofx_uncompress((unsigned char*)data+10,len-10,(unsigned char*)pixels.getPixels(),pixels.size()*sizeof(short));
 	}else{
@@ -149,8 +149,10 @@ void ofxDepthCompressedFrame::fromCompressedData(const char* data, size_t len){
 			ofx_uncompress((unsigned char*)data+10,len-10,uncompressedDiff);
 			int lastPos = 0;
 			for(size_t i=0; i<uncompressedDiff.size(); i++){
-				pixels[lastPos+uncompressedDiff[i].pos] = uncompressedDiff[i].value;
-				lastPos += uncompressedDiff[i].pos;
+				int nextPos = lastPos+uncompressedDiff[i].pos;
+				if(nextPos>=pixels.size()) break;
+				pixels[nextPos] = uncompressedDiff[i].value;
+				lastPos = nextPos;
 			}
 		}
 	}
