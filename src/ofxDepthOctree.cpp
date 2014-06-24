@@ -156,7 +156,7 @@ void ofxDepthVoxel::serialize(ofBuffer & repr, int level){
 	if(level==0) return;
 	unsigned char reprc = 0;
 	for(size_t i= 0;i<divisions.size();i++){
-		if(!divisions[i].indices.empty()) reprc |= (unsigned char)pow(2,i);
+		if(!divisions[i].indices.empty()) reprc |= (unsigned char)powf(2,i);
 	}
 	//if(reprc==255) cout << "error repr==255 level "<< level << endl;
 	if(level!=0 && divisions.empty()) reprc = 255;
@@ -179,7 +179,7 @@ ExternalBuffer ofxDepthVoxel::deserialize(const ExternalBuffer & repr, int level
 	}else{
 		createDivisions();
 		for(size_t i=0;i<divisions.size();i++){
-			if(reprc & (unsigned char)pow(2,i)){
+			if(reprc & (unsigned char)powf(2,i)){
 				divisions[i].indices.push_back(0);
 				rest = divisions[i].deserialize(rest,levels-1);
 			}
