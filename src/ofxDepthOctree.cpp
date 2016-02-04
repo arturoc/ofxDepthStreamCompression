@@ -315,7 +315,7 @@ ofBuffer ofxDepthOctree::serialize(int level){
 }
 
 void ofxDepthOctree::deserialize(const ofBuffer & repr, int levels){
-	ExternalBuffer ret = { repr.getBinaryBuffer(), repr.size()};
+	ExternalBuffer ret = { repr.getBinaryBuffer(), static_cast<size_t>(repr.size())};
 	octree.deserialize(ret,levels);
 }
 
